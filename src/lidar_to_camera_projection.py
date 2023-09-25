@@ -2,6 +2,7 @@ import numpy as np
 import open3d as o3d
 import glob
 import cv2
+import matplotlib.pyplot as plt
 
 class LiDARtoCamera():
     """
@@ -90,6 +91,38 @@ class LiDARtoCamera():
         fov_idx = fov_idx & (pcd_points[:, 0] > clip_dist)
         pcd_points_in_img = pcd_points[fov_idx, :]
         return pcd_points_in_img, img_points, fov_idx
+    
+    def show_pcd_on_image(self, image, pcd_points):
+        """
+        This function draws the pcd points over the given image
+
+        :param image: cv2 image, given input
+        :param pcd_points: ndarray, point cloud points
+        :return image: cv2 image, draws the pcd points on top of the passed image
+        """
+        pcd_points_in_img, img_points, fov_idx = self.get_pcd_in_image_fov(pcd_points,
+                                                                           xmin=0,
+                                                                           xmax=image.shape[1],
+                                                                           ymin=0,
+                                                                           ymax=image.shape[0],
+                                                                           clip_dist=2.0)
+        pcd_img_points = img_points[fov_idx, :]
+
+        ## Create a color map scale
+        cmap = plt.cm.get_cmap("hsv", 256)
+        cmap = np.array([cmap(i) for i in range(256)])[:, :3] * 255
+        
+        ## Draws the PCD points on image
+        for i in range(pcd_img_points.shape[0]):
+            depth = pcd_points_in_img[i, 0]
+            color = cmap[int(2*255.0/depth), :]
+            cv2.circle(image, 
+                       (int(np.round(pcd_img_points[i, 0])), int(np.round(pcd_img_points[i, 1]))),
+                       radius=3,
+                       color=tuple(color),
+                       thickness=-1)
+
+        return image
 
 if __name__ == "__main__":
     idx = 0
@@ -105,10 +138,15 @@ if __name__ == "__main__":
     
     ## Read Point cloud files
     pcd = o3d.io.read_point_cloud(pointcloud_files[idx])
+    points_pcd = np.asarray(pcd.points)
 
     ## Convert from LiDAR to Camera coord
     lidar2cam = LiDARtoCamera(calib_files[idx])
 
-    pcd_points_in_img, img_points, fov_idx = lidar2cam.get_pcd_in_image_fov(
-        np.asarray(pcd.points)[:10, :], 0, image.shape[1], 0, image.shape[0])
+    image = lidar2cam.show_pcd_on_image(image.copy(), points_pcd)
+
+    ## Save the image
+    plt.figure(figsize=(14, 7))
+    plt.imshow(image)
+    plt.savefig("../output/000031.png")
     
