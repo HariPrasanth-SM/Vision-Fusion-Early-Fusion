@@ -1,6 +1,7 @@
 import numpy as np
 import open3d as o3d
 import glob
+import cv2
 
 class LiDARtoCamera():
     """
@@ -66,18 +67,48 @@ class LiDARtoCamera():
         img_points[:, 1] /= img_points[:, 2]
 
         return img_points[:, :2]
+    
+    def get_pcd_in_image_fov(self, pcd_points, xmin, xmax, ymin, ymax, clip_dist=2.0):
+        """
+        This function filters the points only in image FoV from the pcd file 
+
+        :param pcd_points: ndarray, points from point cloud file
+        :param xmin: int, image x-axis min value == zero
+        :param xmax: int, image x-axis max value
+        :param ymin: int, image y-axis min value == zero
+        :param ymax: int, image y-axis max value
+        :param clip_dist: float, the minimum clipping distance for lidar
+        :return pcd_points_in_img: ndarray, points of pcd file that projects into the image
+        :return img_points: ndarray, points from pcd in camera co-ord
+        :return fov_idx: ndarray, a mask that filter the points for image fov
+        """
+        img_points = self.project_pcd_to_image(pcd_points)
+        fov_idx = ((img_points[:, 0] >= xmin)&
+                   (img_points[:, 0] < xmax)&
+                   (img_points[:, 1] >= ymin)&
+                   (img_points[:, 1] < ymax))
+        fov_idx = fov_idx & (pcd_points[:, 0] > clip_dist)
+        pcd_points_in_img = pcd_points[fov_idx, :]
+        return pcd_points_in_img, img_points, fov_idx
 
 if __name__ == "__main__":
-    ## List of calibration file and select first one
-    calib_files = sorted(glob.glob("../data/calib/*.txt"))
     idx = 0
+
+    ## Load the list of files 
+    calib_files = sorted(glob.glob("../data/calib/*.txt"))
+    pointcloud_files = sorted(glob.glob("../data/velodyne/*.pcd"))
+    image_files = sorted(glob.glob("../data/img/*.png"))
+    
+    ## Read the image file
+    image = cv2.imread(image_files[idx])
+    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     
     ## Read Point cloud files
-    pointcloud_files = sorted(glob.glob("../data/velodyne/*.pcd"))
     pcd = o3d.io.read_point_cloud(pointcloud_files[idx])
 
     ## Convert from LiDAR to Camera coord
     lidar2cam = LiDARtoCamera(calib_files[idx])
 
-    print(lidar2cam.project_pcd_to_image(np.asarray(pcd.points)[:1, :3]))
+    pcd_points_in_img, img_points, fov_idx = lidar2cam.get_pcd_in_image_fov(
+        np.asarray(pcd.points)[:10, :], 0, image.shape[1], 0, image.shape[0])
     
