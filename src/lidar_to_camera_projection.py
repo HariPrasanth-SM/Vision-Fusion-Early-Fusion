@@ -100,24 +100,24 @@ class LiDARtoCamera():
         :param pcd_points: ndarray, point cloud points
         :return image: cv2 image, draws the pcd points on top of the passed image
         """
-        pcd_points_in_img, img_points, fov_idx = self.get_pcd_in_image_fov(pcd_points,
+        self.pcd_points_in_img, img_points, fov_idx = self.get_pcd_in_image_fov(pcd_points,
                                                                            xmin=0,
                                                                            xmax=image.shape[1],
                                                                            ymin=0,
                                                                            ymax=image.shape[0],
                                                                            clip_dist=2.0)
-        pcd_img_points = img_points[fov_idx, :]
+        self.pcd_img_points = img_points[fov_idx, :]
 
         ## Create a color map scale
         cmap = plt.cm.get_cmap("hsv", 256)
         cmap = np.array([cmap(i) for i in range(256)])[:, :3] * 255
         
         ## Draws the PCD points on image
-        for i in range(pcd_img_points.shape[0]):
-            depth = pcd_points_in_img[i, 0]
+        for i in range(self.pcd_img_points.shape[0]):
+            depth = self.pcd_points_in_img[i, 0]
             color = cmap[int(2*255.0/depth), :]
             cv2.circle(image, 
-                       (int(np.round(pcd_img_points[i, 0])), int(np.round(pcd_img_points[i, 1]))),
+                       (int(np.round(self.pcd_img_points[i, 0])), int(np.round(self.pcd_img_points[i, 1]))),
                        radius=3,
                        color=tuple(color),
                        thickness=-1)

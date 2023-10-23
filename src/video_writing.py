@@ -5,7 +5,7 @@ import glob
 import tqdm
 import imageio
 
-from lidar_to_camera_projection import LiDARtoCamera
+from pipeline import pipeline
 
 if __name__ == "__main__":
     ## Read all calib files, images and point cloud files
@@ -13,9 +13,6 @@ if __name__ == "__main__":
     scenario_images = sorted(glob.glob("../data/scenario/images/*.png"))
     scenario_points = sorted(glob.glob("../data/scenario/points/*.pcd"))
     image = cv2.imread(scenario_images[0])
-
-    ## Create a LiDAR to Camera object
-    lidar2camera = LiDARtoCamera(calib_files[0])
 
     ## Create a video writer object
     output_handle = cv2.VideoWriter("../output/3d_to_2d_projection.avi",
@@ -29,8 +26,8 @@ if __name__ == "__main__":
     image_list = list()
     for im, pcd in zip(scenario_images, scenario_points):
         image = cv2.cvtColor(cv2.imread(im), cv2.COLOR_BGR2RGB)
-        points = np.asarray(o3d.io.read_point_cloud(pcd).points)
-        processed_image = lidar2camera.show_pcd_on_image(image, points)
+        point_cloud = o3d.io.read_point_cloud(pcd)
+        processed_image = pipeline(image, point_cloud, calib_files[0])
         image_list.append(processed_image)
         output_handle.write(cv2.cvtColor(processed_image, cv2.COLOR_BGR2RGB))
         pbar.update(1)
@@ -38,5 +35,5 @@ if __name__ == "__main__":
     output_handle.release()
 
     ## Write a GIF
-    imageio.mimsave("../output/3d_to_2d_projection.gif", image_list, duration=5)
+    imageio.mimsave("../output/early_fusion.gif", image_list, duration=5)
 
